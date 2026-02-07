@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Todo App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f9;
+            display: flex;
+            justify-content: center;
+            padding: 50px 20px;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 5px rgba(0,123,255,0.5);
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        ul {
+            list-style: none;
+            margin-top: 20px;
+        }
+
+        li {
+            background-color: #f1f5f9;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: 0.3s;
+        }
+
+        li:hover {
+            background-color: #e2e8f0;
+        }
+
+        .todo-text {
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .action-buttons button {
+            margin-left: 5px;
+            font-size: 12px;
+            padding: 6px 10px;
+        }
+
+        .update-btn {
+            background-color: #ffc107;
+        }
+
+        .update-btn:hover {
+            background-color: #e0a800;
+        }
+
+        .delete-btn {
+            background-color: #dc3545;
+        }
+
+        .delete-btn:hover {
+            background-color: #b02a37;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Login</h2>
+        <input id="username" placeholder="Username">
+        <input id="password" type="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+
+        <h2>Add Todo</h2>
+        <input id="todoText" placeholder="Enter todo">
+        <button onclick="addTodo()">Add Todo</button>
+
+        <h2>Your Todos</h2>
+        <ul id="todoList"></ul>
+    </div>
+
+    <script>
+        let token = "";
+
+        async function login() {
+            const formData = new FormData();
+            formData.append("username", document.getElementById("username").value);
+            formData.append("password", document.getElementById("password").value);
+
+            const res = await fetch("/login", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await res.json();
+            token = data.access_token;
+            loadTodos();
+        }
+
+        async function loadTodos() {
+            const res = await fetch("/todos", {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            const todos = await res.json();
+
+            const list = document.getElementById("todoList");
+            list.innerHTML = "";
+
+            todos.forEach(t => {
+                const li = document.createElement("li");
+
+                const span = document.createElement("span");
+                span.className = "todo-text";
+                span.textContent = t.title;
+                li.appendChild(span);
+
+                const actions = document.createElement("div");
+                actions.className = "action-buttons";
+
+                // Update button
+                const updateBtn = document.createElement("button");
+                updateBtn.textContent = "Update";
+                updateBtn.className = "update-btn";
+                updateBtn.onclick = () => updateTodo(t.id, span);
+
+                // Delete button
+                const deleteBtn = document.createElement("button");
+                deleteBtn.textContent = "Delete";
+                deleteBtn.className = "delete-btn";
+                deleteBtn.onclick = () => deleteTodo(t.id);
+
+                actions.appendChild(updateBtn);
+                actions.appendChild(deleteBtn);
+
+                li.appendChild(actions);
+                list.appendChild(li);
+            });
+        }
+
+        async function addTodo() {
+            const text = document.getElementById("todoText").value;
+            if (!text) return alert("Please enter a todo!");
+
+            await fetch("/todos", {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer " + token,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ title: text })
+            });
+
+            document.getElementById("todoText").value = "";
+            loadTodos();
+        }
+
+        async function updateTodo(id, span) {
+            const newText = prompt("Update todo:", span.textContent);
+            if (!newText) return;
+
+            await fetch(`/todos/${id}`, {
+                method: "PUT",
+                headers: {
+                    "Authorization": "Bearer " + token,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ title: newText })
+            });
+
+            loadTodos();
+        }
+
+        async function deleteTodo(id) {
+            if (!confirm("Are you sure you want to delete this todo?")) return;
+
+            await fetch(`/todos/${id}`, {
+                method: "DELETE",
+                headers: { "Authorization": "Bearer " + token }
+            });
+
+            loadTodos();
+        }
+    </script>
+</body>
+</html>
